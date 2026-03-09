@@ -2,7 +2,7 @@ name: Daily Job Search
 
 on:
   schedule:
-    - cron: '30 3 * * *'  # Runs every day at 9:00 AM IST
+    - cron: '22 20 * * *'  # Runs every day at 9:00 AM IST
   workflow_dispatch:        # Also allows manual trigger
 
 jobs:
