@@ -1,1 +1,33 @@
+name: Daily Job Search
 
+on:
+  schedule:
+    - cron: '30 3 * * *'  # Runs every day at 9:00 AM IST
+  workflow_dispatch:        # Also allows manual trigger
+
+jobs:
+  run-job-search:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install openpyxl requests beautifulsoup4
+
+      - name: Run job search script
+        run: python job_search_daily.py
+
+      - name: Upload output files
+        uses: actions/upload-artifact@v3
+        with:
+          name: job-listings
+          path: |
+            job_listing_*.csv
+            job_listing_*.xlsx
