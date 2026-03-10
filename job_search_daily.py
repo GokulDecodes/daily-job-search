@@ -362,13 +362,13 @@ def main():
     print(f"  Run Date : {datetime.now().strftime('%Y-%m-%d %H:%M')} IST")
     print("="*58)
 
+    # ── Always create output folder FIRST (before anything else) ──
+    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+
     if not APP_ID or not APP_KEY:
         print("\n❌ ERROR: ADZUNA_APP_ID or ADZUNA_APP_KEY not set!")
         print("   Add them as GitHub Secrets and reference in yml env: block.")
         return
-
-    # ── FIX: Always create output folder if it doesn't exist ──
-    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
     seen_ids = load_seen_ids()
     print(f"\n📂 Previously seen jobs: {len(seen_ids)}")
@@ -393,7 +393,16 @@ def main():
     print(f"\n🆕 New jobs today    : {len(new_jobs)}")
 
     if not new_jobs:
-        print("\n⚠️  No new jobs found today. Try again tomorrow!")
+        print("\n⚠️  No new jobs found today. Creating empty file as placeholder...")
+        # Still create empty files so artifact upload never fails
+        today     = datetime.now().strftime("%Y-%m-%d")
+        csv_path  = os.path.join(OUTPUT_FOLDER, f"job_listing_{today}.csv")
+        xlsx_path = os.path.join(OUTPUT_FOLDER, f"job_listing_{today}.xlsx")
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=HEADERS)
+            writer.writeheader()
+        export_xlsx([], xlsx_path)
+        print(f"  📄 Empty placeholder files created in {OUTPUT_FOLDER}/")
         return
 
     rows   = [build_row(j) for j in new_jobs]
