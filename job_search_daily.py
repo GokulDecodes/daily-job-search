@@ -37,6 +37,8 @@ PROFILE = {
 }
 
 SEARCH_QUERIES = [
+
+    # ── BY PRIMARY SKILLS (your strongest) ──────
     "Angular TypeScript developer Chennai",        # 1
     "Angular TypeScript developer Bangalore",      # 2
     "React Native developer Chennai",              # 3
@@ -59,9 +61,11 @@ SEARCH_QUERIES = [
     "Angular RxJS developer India",                # 14
     "React Native Expo developer India",           # 15
     "frontend developer Bangalore 2 years",        # 16
+
 ]
 
 HISTORY_FILE = "seen_jobs.json"
+OUTPUT_FOLDER = "job_listing"   # all output files go here
 
 # ─────────────────────────────────────────────
 # SECTION 2: FETCH JOBS FROM ADZUNA API
@@ -102,20 +106,9 @@ def fetch_jobs(query: str, pages: int = 2) -> list:
 
 # ─────────────────────────────────────────────
 # SECTION 3: RESOLVE EXACT JOB URL
-# Follows Adzuna redirect to get real company URL
 # ─────────────────────────────────────────────
 
 def resolve_exact_url(redirect_url: str) -> str:
-    """
-    Adzuna gives a redirect_url like:
-      https://adzuna.in/jobs/land/ad/12345?...
-    This function follows the redirect to get the
-    EXACT company job page URL e.g.:
-      https://careers.zoho.com/job/12345
-      https://jobs.lever.co/company/abc
-      https://naukri.com/job-listings-xyz
-    Falls back to Adzuna link if resolve fails.
-    """
     if not redirect_url:
         return ""
     try:
@@ -128,12 +121,11 @@ def resolve_exact_url(redirect_url: str) -> str:
             }
         )
         final_url = response.url
-        # If it stayed on Adzuna, return original redirect as fallback
         if "adzuna.com" in final_url or "adzuna.in" in final_url:
             return redirect_url
         return final_url
     except Exception:
-        return redirect_url  # fallback
+        return redirect_url
 
 # ─────────────────────────────────────────────
 # SECTION 4: FILTER & PARSE
@@ -184,11 +176,9 @@ def parse_job(raw: dict) -> dict:
     created      = raw.get("created", "")[:10] if raw.get("created") else datetime.now().strftime("%Y-%m-%d")
     job_id       = raw.get("id", "")
 
-    # ── Resolve exact company job page URL ──────────
     print(f"   🔗 Resolving URL for: {company} – {title[:40]}...")
     exact_url = resolve_exact_url(redirect_url)
 
-    # ── Salary ──────────────────────────────────────
     if salary_min and salary_max:
         salary = f"₹{int(salary_min):,} – ₹{int(salary_max):,}/yr"
     elif salary_min:
@@ -196,7 +186,6 @@ def parse_job(raw: dict) -> dict:
     else:
         salary = "Not disclosed"
 
-    # ── Location type ────────────────────────────────
     loc_lower = location.lower()
     if "remote" in loc_lower:
         loc_type = f"{location} (Remote)"
@@ -205,7 +194,6 @@ def parse_job(raw: dict) -> dict:
     else:
         loc_type = location
 
-    # ── Guess HR email ───────────────────────────────
     company_slug = company.lower().replace(" ", "").replace(",","").replace(".","")[:20]
     hr_email = f"careers@{company_slug}.com"
 
@@ -217,7 +205,7 @@ def parse_job(raw: dict) -> dict:
         "salary":      salary,
         "location":    loc_type,
         "hr_email":    hr_email,
-        "job_link":    exact_url,       # ← EXACT company URL
+        "job_link":    exact_url,
         "source":      "Adzuna API (Live)",
         "posted_date": created,
         "key_skills":  extract_skills(description),
@@ -305,17 +293,17 @@ HEADERS = [
 
 def build_row(job: dict) -> dict:
     return {
-        "Company Name":   job.get("company", ""),
-        "Role":           job.get("role", ""),
-        "Experience":     job.get("experience", "0-3 Years"),
-        "Salary":         job.get("salary", "Not disclosed"),
-        "Location":       job.get("location", ""),
-        "HR Email":       job.get("hr_email", ""),
-        "Job Link":       job.get("job_link", ""),
-        "Source":         job.get("source", "Adzuna API"),
-        "Posted Date":    job.get("posted_date", ""),
-        "Key Skills":     job.get("key_skills", ""),
-        "Why I Match":    generate_why_i_match(job),
+        "Company Name":    job.get("company", ""),
+        "Role":            job.get("role", ""),
+        "Experience":      job.get("experience", "0-3 Years"),
+        "Salary":          job.get("salary", "Not disclosed"),
+        "Location":        job.get("location", ""),
+        "HR Email":        job.get("hr_email", ""),
+        "Job Link":        job.get("job_link", ""),
+        "Source":          job.get("source", "Adzuna API"),
+        "Posted Date":     job.get("posted_date", ""),
+        "Key Skills":      job.get("key_skills", ""),
+        "Why I Match":     generate_why_i_match(job),
         "Job Description": job.get("description", ""),
     }
 
@@ -379,6 +367,9 @@ def main():
         print("   Add them as GitHub Secrets and reference in yml env: block.")
         return
 
+    # ── FIX: Always create output folder if it doesn't exist ──
+    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+
     seen_ids = load_seen_ids()
     print(f"\n📂 Previously seen jobs: {len(seen_ids)}")
 
@@ -396,7 +387,7 @@ def main():
     print(f"✅ After filter      : {len(relevant)}")
 
     print("\n🔗 Resolving exact job URLs...")
-    parsed   = [parse_job(r) for r in relevant]
+    parsed = [parse_job(r) for r in relevant]
 
     new_jobs = deduplicate(parsed, seen_ids)
     print(f"\n🆕 New jobs today    : {len(new_jobs)}")
@@ -415,12 +406,10 @@ def main():
     print(f"   🟡 Medium Match : {medium}")
     print(f"   🔴 Low Match    : {low}")
 
-    folder = "job_listing"
-  if os.path.exists(folder):
-    today = datetime.now().strftime("%Y-%m-%d")
-
-    csv_path = os.path.join(folder, f"job_listing_{today}.csv")
-    xlsx_path = os.path.join(folder, f"job_listing_{today}.xlsx")
+    # ── FIX: Correct file path building ───────────────
+    today     = datetime.now().strftime("%Y-%m-%d")
+    csv_path  = os.path.join(OUTPUT_FOLDER, f"job_listing_{today}.csv")
+    xlsx_path = os.path.join(OUTPUT_FOLDER, f"job_listing_{today}.xlsx")
 
     print("\n💾 Saving files...")
     export_csv(rows, csv_path)
@@ -436,7 +425,7 @@ def main():
         files.download(csv_path)
         files.download(xlsx_path)
     except ImportError:
-        print(f"\n📂 Files saved in: {os.path.abspath('.')}")
+        print(f"\n📂 Files saved in: {os.path.abspath(OUTPUT_FOLDER)}/")
 
     print("\n" + "="*58)
     print(f"  ✅ DONE! {len(new_jobs)} fresh jobs with exact URLs exported.")
