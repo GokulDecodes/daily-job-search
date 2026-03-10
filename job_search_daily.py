@@ -415,9 +415,12 @@ def main():
     print(f"   🟡 Medium Match : {medium}")
     print(f"   🔴 Low Match    : {low}")
 
-    today     = datetime.now().strftime("%Y-%m-%d")
-    csv_path  = f"job_listing_{today}.csv"
-    xlsx_path = f"job_listing_{today}.xlsx"
+    folder = "job_listing"
+  if os.path.exists(folder):
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    csv_path = os.path.join(folder, f"job_listing_{today}.csv")
+    xlsx_path = os.path.join(folder, f"job_listing_{today}.xlsx")
 
     print("\n💾 Saving files...")
     export_csv(rows, csv_path)
