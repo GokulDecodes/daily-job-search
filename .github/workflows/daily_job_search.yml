@@ -2,8 +2,8 @@ name: Daily Job Search
 
 on:
   schedule:
-    - cron: '30 3 * * *'  # Runs every day at 9:00 AM IST
-  workflow_dispatch: # Also allows manual trigger
+    - cron: '30 3 * * *'  # 9:00 AM IST every day
+  workflow_dispatch:        # manual trigger anytime
 
 jobs:
   run-job-search:
@@ -11,10 +11,10 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -27,11 +27,10 @@ jobs:
           ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
         run: python job_search_daily.py
 
-
       - name: Upload output files
         uses: actions/upload-artifact@v4
         with:
-          name: job-listings
+          name: job-listings-${{ github.run_number }}
           path: |
-            job_listing_*.csv
-            job_listing_*.xlsx
+            job_listing/job_listing_*.csv
+            job_listing/job_listing_*.xlsx
