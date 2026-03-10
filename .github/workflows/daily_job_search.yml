@@ -27,6 +27,16 @@ jobs:
           ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
         run: python job_search_daily.py
 
+      - name: Save job history back to repo
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add seen_jobs.json job_listing/ || true
+          git diff --staged --quiet || git commit -m "Daily job update $(date +'%Y-%m-%d')"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload output files
         uses: actions/upload-artifact@v4
         with:
